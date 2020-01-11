@@ -1,38 +1,63 @@
 {
   "firmwares": [
     {
-      "xiaomidevice": "",
       "originalimages": [
         {
           "version": "1886",
-          "url": "https://dustbuilder.xvm.mit.edu/pkg/s5/v11_001886.fullos.pkg"
+          "url": "https://dustbuilder.xvm.mit.edu/pkg/s5/v11_001886.fullos.pkg",
+          "xiaomidevice": "",
+          "user": "",
+          "repository": "",
+          "download": [],
+          "preinstall": [],
+          "install": "",
+          "description": ""
         }
       ],
       "customimages": [
         {
+          "version": "",
+          "url": "",
+          "xiaomidevice": "",
           "user": "rand256",
-          "repository": "Valetudo"
+          "repository": "Valetudo",
+          "download": [],
+          "preinstall": [],
+          "install": "",
+          "description": ""
         }
-      ],
-      "description": ""
+      ]
     }
   ],
   "voicepacks": [
     {
-      "user": "",
-      "repository": "",
-      "url": ""
+      "version": "",
+      "url": "",
+      "xiaomidevice": "",
+      "user": "rand256",
+      "repository": "Valetudo",
+      "download": [],
+      "preinstall": [],
+      "install": "",
+      "description": ""
     }
   ],
   "webinterface": [
     {
+      "version": "",
+      "url": "",
+      "xiaomidevice": "",
       "user": "Hypfer",
       "repository": "Valetudo",
       "download": [],
       "preinstall": [],
-      "install": "valetudo"
+      "install": "",
+      "description": ""
     },
     {
+      "version": "",
+      "url": "",
+      "xiaomidevice": "",
       "user": "rand256",
       "repository": "Valetudo",
       "download": [
@@ -40,7 +65,8 @@
         "https://github.com/rand256/valetudo/blob/0.8.1/deployment/deps/libstdc++6_6.2.0-2ubuntu11_armhf.deb?raw=true"
       ],
       "preinstall": [ "gcc-6-base_6.2.0-2ubuntu11_armhf.deb", "libstdc++6_6.2.0-2ubuntu11_armhf.deb" ],
-      "install": "valetudo-*_armhf.deb"
+      "install": "valetudo-*_armhf.deb",
+      "description": ""
     }
   ]
 }

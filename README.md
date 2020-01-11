@@ -21,13 +21,18 @@
 
 ## Usage
 
-* download latest release
-* extract files
-* insert or discover Xiaomi device
-* insert your token
-* insert packages voicepacks/firmware/webinterface
-* Flash your Package
-
+### First install valetudo
+- Reset your roborock from mi cloud
+- Connect to roborock's open Wifi
+- Discover device
+- Copy new firmware pkg in /firmware/ folder
+- Change to firmware tab
+- Install firmware
+- **wait on install finished (not only the download)**
+- Change to expert tab
+- Select MiIO.config_router
+- Insert your WLAN-data in parameters
+- Send the WLAN to roborock
 
 ---
 
@@ -91,6 +96,4 @@ https://github.com/dlid/Dlid.MiHome
 
 ## License
 
-[![License](http://img.shields.io/:license-mit-blue.svg?style=flat-square)](http://badges.mit-license.org)
-
-- **[MIT license](http://opensource.org/licenses/mit-license.php)**
+[![License](http://img.shields.io/:license-mit-blue.svg?style=flat-square)](http://opensource.org/licenses/mit-license.php)

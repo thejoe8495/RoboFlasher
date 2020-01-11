@@ -33,6 +33,7 @@
             this.txtlog = new System.Windows.Forms.TextBox();
             this.metroTabControl1 = new MetroFramework.Controls.MetroTabControl();
             this.tabDevice = new System.Windows.Forms.TabPage();
+            this.chkAllKnown = new System.Windows.Forms.CheckBox();
             this.llbWebserver = new System.Windows.Forms.LinkLabel();
             this.label10 = new System.Windows.Forms.Label();
             this.lblErrorToken = new System.Windows.Forms.Label();
@@ -51,7 +52,6 @@
             this.txtipadress = new System.Windows.Forms.TextBox();
             this.tabWebinterface = new System.Windows.Forms.TabPage();
             this.btnWebinterfaceDownload = new System.Windows.Forms.Button();
-            this.chkWebinterface = new System.Windows.Forms.CheckedListBox();
             this.btnWebinterfaceInstall = new System.Windows.Forms.Button();
             this.label14 = new System.Windows.Forms.Label();
             this.btnRunWerbint = new System.Windows.Forms.Button();
@@ -59,8 +59,6 @@
             this.label2 = new System.Windows.Forms.Label();
             this.lstwebinterface = new System.Windows.Forms.ListBox();
             this.tabFirmware = new System.Windows.Forms.TabPage();
-            this.chkFirmware = new System.Windows.Forms.CheckedListBox();
-            this.btnFirmwareDownload = new System.Windows.Forms.Button();
             this.btnInstallFirmware = new System.Windows.Forms.Button();
             this.label5 = new System.Windows.Forms.Label();
             this.lstfirmware = new System.Windows.Forms.ListBox();
@@ -74,8 +72,6 @@
             this.cboFirmware = new System.Windows.Forms.ComboBox();
             this.label11 = new System.Windows.Forms.Label();
             this.tabVoiceinstall = new System.Windows.Forms.TabPage();
-            this.chkVoices = new System.Windows.Forms.CheckedListBox();
-            this.btnVoiceDownload = new System.Windows.Forms.Button();
             this.btnInstallVoicepack = new System.Windows.Forms.Button();
             this.label8 = new System.Windows.Forms.Label();
             this.lstVoices = new System.Windows.Forms.ListBox();
@@ -93,6 +89,7 @@
             this.label15 = new System.Windows.Forms.Label();
             this.prgMiiO = new MetroFramework.Controls.MetroProgressBar();
             this.btnRefresh = new System.Windows.Forms.Button();
+            this.cboMiioCommands = new System.Windows.Forms.ComboBox();
             this.metroTabControl1.SuspendLayout();
             this.tabDevice.SuspendLayout();
             this.tabWebinterface.SuspendLayout();
@@ -110,6 +107,7 @@
             this.txtlog.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.txtlog.Multiline = true;
             this.txtlog.Name = "txtlog";
+            this.txtlog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.txtlog.Size = new System.Drawing.Size(1237, 131);
             this.txtlog.TabIndex = 10;
             // 
@@ -126,13 +124,14 @@
             this.metroTabControl1.Controls.Add(this.tabExpert);
             this.metroTabControl1.Location = new System.Drawing.Point(33, 95);
             this.metroTabControl1.Name = "metroTabControl1";
-            this.metroTabControl1.SelectedIndex = 3;
+            this.metroTabControl1.SelectedIndex = 5;
             this.metroTabControl1.Size = new System.Drawing.Size(1245, 523);
             this.metroTabControl1.TabIndex = 19;
             this.metroTabControl1.UseSelectable = true;
             // 
             // tabDevice
             // 
+            this.tabDevice.Controls.Add(this.chkAllKnown);
             this.tabDevice.Controls.Add(this.llbWebserver);
             this.tabDevice.Controls.Add(this.label10);
             this.tabDevice.Controls.Add(this.lblErrorToken);
@@ -154,6 +153,19 @@
             this.tabDevice.Size = new System.Drawing.Size(1237, 481);
             this.tabDevice.TabIndex = 0;
             this.tabDevice.Text = "Device";
+            // 
+            // chkAllKnown
+            // 
+            this.chkAllKnown.AutoSize = true;
+            this.chkAllKnown.Checked = true;
+            this.chkAllKnown.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkAllKnown.Location = new System.Drawing.Point(789, 291);
+            this.chkAllKnown.Name = "chkAllKnown";
+            this.chkAllKnown.Size = new System.Drawing.Size(198, 24);
+            this.chkAllKnown.TabIndex = 41;
+            this.chkAllKnown.Text = "show all known devices";
+            this.chkAllKnown.UseVisualStyleBackColor = true;
+            this.chkAllKnown.CheckedChanged += new System.EventHandler(this.chkAllKnown_CheckedChanged);
             // 
             // llbWebserver
             // 
@@ -253,7 +265,7 @@
             // lstdevices
             // 
             this.lstdevices.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.lstdevices.DisplayMember = "Linetext";
+            this.lstdevices.DisplayMember = "Devicename";
             this.lstdevices.FormattingEnabled = true;
             this.lstdevices.ItemHeight = 20;
             this.lstdevices.Location = new System.Drawing.Point(789, 77);
@@ -279,6 +291,7 @@
             this.txtToken.Name = "txtToken";
             this.txtToken.Size = new System.Drawing.Size(380, 26);
             this.txtToken.TabIndex = 22;
+            this.txtToken.Text = "00000000000000000000000000000000";
             this.txtToken.TextChanged += new System.EventHandler(this.txtToken_TextChanged);
             // 
             // btnDiscoverDevices
@@ -313,7 +326,6 @@
             // tabWebinterface
             // 
             this.tabWebinterface.Controls.Add(this.btnWebinterfaceDownload);
-            this.tabWebinterface.Controls.Add(this.chkWebinterface);
             this.tabWebinterface.Controls.Add(this.btnWebinterfaceInstall);
             this.tabWebinterface.Controls.Add(this.label14);
             this.tabWebinterface.Controls.Add(this.btnRunWerbint);
@@ -334,14 +346,6 @@
             this.btnWebinterfaceDownload.TabIndex = 30;
             this.btnWebinterfaceDownload.Text = "Download selected";
             this.btnWebinterfaceDownload.UseVisualStyleBackColor = true;
-            // 
-            // chkWebinterface
-            // 
-            this.chkWebinterface.FormattingEnabled = true;
-            this.chkWebinterface.Location = new System.Drawing.Point(782, 72);
-            this.chkWebinterface.Name = "chkWebinterface";
-            this.chkWebinterface.Size = new System.Drawing.Size(431, 211);
-            this.chkWebinterface.TabIndex = 29;
             // 
             // btnWebinterfaceInstall
             // 
@@ -403,8 +407,6 @@
             // 
             // tabFirmware
             // 
-            this.tabFirmware.Controls.Add(this.chkFirmware);
-            this.tabFirmware.Controls.Add(this.btnFirmwareDownload);
             this.tabFirmware.Controls.Add(this.btnInstallFirmware);
             this.tabFirmware.Controls.Add(this.label5);
             this.tabFirmware.Controls.Add(this.lstfirmware);
@@ -413,23 +415,6 @@
             this.tabFirmware.Size = new System.Drawing.Size(1237, 481);
             this.tabFirmware.TabIndex = 2;
             this.tabFirmware.Text = "Firmware";
-            // 
-            // chkFirmware
-            // 
-            this.chkFirmware.FormattingEnabled = true;
-            this.chkFirmware.Location = new System.Drawing.Point(782, 72);
-            this.chkFirmware.Name = "chkFirmware";
-            this.chkFirmware.Size = new System.Drawing.Size(431, 211);
-            this.chkFirmware.TabIndex = 32;
-            // 
-            // btnFirmwareDownload
-            // 
-            this.btnFirmwareDownload.Location = new System.Drawing.Point(927, 292);
-            this.btnFirmwareDownload.Name = "btnFirmwareDownload";
-            this.btnFirmwareDownload.Size = new System.Drawing.Size(285, 58);
-            this.btnFirmwareDownload.TabIndex = 31;
-            this.btnFirmwareDownload.Text = "Download selected";
-            this.btnFirmwareDownload.UseVisualStyleBackColor = true;
             // 
             // btnInstallFirmware
             // 
@@ -554,8 +539,6 @@
             // 
             // tabVoiceinstall
             // 
-            this.tabVoiceinstall.Controls.Add(this.chkVoices);
-            this.tabVoiceinstall.Controls.Add(this.btnVoiceDownload);
             this.tabVoiceinstall.Controls.Add(this.btnInstallVoicepack);
             this.tabVoiceinstall.Controls.Add(this.label8);
             this.tabVoiceinstall.Controls.Add(this.lstVoices);
@@ -564,23 +547,6 @@
             this.tabVoiceinstall.Size = new System.Drawing.Size(1237, 481);
             this.tabVoiceinstall.TabIndex = 3;
             this.tabVoiceinstall.Text = "Voices";
-            // 
-            // chkVoices
-            // 
-            this.chkVoices.FormattingEnabled = true;
-            this.chkVoices.Location = new System.Drawing.Point(782, 72);
-            this.chkVoices.Name = "chkVoices";
-            this.chkVoices.Size = new System.Drawing.Size(431, 211);
-            this.chkVoices.TabIndex = 34;
-            // 
-            // btnVoiceDownload
-            // 
-            this.btnVoiceDownload.Location = new System.Drawing.Point(927, 292);
-            this.btnVoiceDownload.Name = "btnVoiceDownload";
-            this.btnVoiceDownload.Size = new System.Drawing.Size(285, 58);
-            this.btnVoiceDownload.TabIndex = 33;
-            this.btnVoiceDownload.Text = "Download selected";
-            this.btnVoiceDownload.UseVisualStyleBackColor = true;
             // 
             // btnInstallVoicepack
             // 
@@ -614,6 +580,7 @@
             // 
             // tabExpert
             // 
+            this.tabExpert.Controls.Add(this.cboMiioCommands);
             this.tabExpert.Controls.Add(this.lblsshcomman);
             this.tabExpert.Controls.Add(this.txtSshCommand);
             this.tabExpert.Controls.Add(this.btnSshCommand);
@@ -683,7 +650,7 @@
             // 
             // txtMiioCommand
             // 
-            this.txtMiioCommand.Location = new System.Drawing.Point(212, 44);
+            this.txtMiioCommand.Location = new System.Drawing.Point(212, 81);
             this.txtMiioCommand.Name = "txtMiioCommand";
             this.txtMiioCommand.Size = new System.Drawing.Size(280, 26);
             this.txtMiioCommand.TabIndex = 1;
@@ -734,6 +701,22 @@
             this.btnRefresh.UseVisualStyleBackColor = true;
             this.btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
             // 
+            // cboMiioCommands
+            // 
+            this.cboMiioCommands.FormattingEnabled = true;
+            this.cboMiioCommands.Items.AddRange(new object[] {
+            "--",
+            "miIO.config_router",
+            "miIO.info",
+            "miIO.get_ota_progress",
+            "miIO.get_ota_state",
+            "enable_log_upload"});
+            this.cboMiioCommands.Location = new System.Drawing.Point(212, 41);
+            this.cboMiioCommands.Name = "cboMiioCommands";
+            this.cboMiioCommands.Size = new System.Drawing.Size(193, 28);
+            this.cboMiioCommands.TabIndex = 8;
+            this.cboMiioCommands.SelectedIndexChanged += new System.EventHandler(this.cboMiioCommands_SelectedIndexChanged);
+            // 
             // Mainform
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
@@ -749,7 +732,7 @@
             this.Name = "Mainform";
             this.Padding = new System.Windows.Forms.Padding(30, 92, 30, 31);
             this.Text = "RoboFlasher";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Mainform_FormClosing);
             this.metroTabControl1.ResumeLayout(false);
             this.tabDevice.ResumeLayout(false);
             this.tabDevice.PerformLayout();
@@ -824,14 +807,11 @@
         private System.Windows.Forms.Button btnWebinterfaceInstall;
         private System.Windows.Forms.Button btnInstallVoicepack;
         private System.Windows.Forms.Button btnWebinterfaceDownload;
-        private System.Windows.Forms.CheckedListBox chkWebinterface;
-        private System.Windows.Forms.CheckedListBox chkFirmware;
-        private System.Windows.Forms.Button btnFirmwareDownload;
-        private System.Windows.Forms.CheckedListBox chkVoices;
-        private System.Windows.Forms.Button btnVoiceDownload;
         private System.Windows.Forms.Button btnRefresh;
         private System.Windows.Forms.LinkLabel llbWebserver;
         private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.CheckBox chkAllKnown;
+        private System.Windows.Forms.ComboBox cboMiioCommands;
     }
 }
 

@@ -19,9 +19,11 @@ using System.Windows.Forms;
 
 namespace RoboFlasher {
     public partial class Mainform : MetroForm {
-        private List<GitRelases> valrelease = new List<GitRelases>();
+        private OnlineResources valrelease = new OnlineResources();
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
         private Dictionary<string, string> tokens = new Dictionary<string, string>();
+        public List<MiDevice> knowndev = new List<MiDevice>();
+        public List<MiDevice> discovered = new List<MiDevice>();
         SimpleHTTPServer ws = new SimpleHTTPServer();
         string progressMiiO = "";
 
@@ -37,7 +39,21 @@ namespace RoboFlasher {
             if (Properties.Settings.Default.Context.ContainsKey("tokens"))
                 tokens = (Dictionary<string, string>)Properties.Settings.Default.Context["tokens"];
             llbWebserver.Text = ws.baseurl;
+            loadDevicelist();
+            lstdevices.DataSource = knowndev;
+        }
+        private void Mainform_FormClosing(object sender, FormClosingEventArgs e) {
+            ws.Stop();
+            if (Properties.Settings.Default.Context.ContainsKey("rsafile"))
+                Properties.Settings.Default.Context.Add("rsafile", txtRsaKey.Text);
+            else
+                Properties.Settings.Default.Context["rsafile"] = txtRsaKey.Text;
 
+            if (Properties.Settings.Default.Context.ContainsKey("tokens"))
+                Properties.Settings.Default.Context.Add("tokens", tokens);
+            else
+                Properties.Settings.Default.Context["tokens"] = tokens;
+            Properties.Settings.Default.Save();
         }
 
         private void loadFiles(string folder, ListBox lst, ComboBox cbo) {
@@ -64,58 +80,60 @@ namespace RoboFlasher {
             return filesandfolders;
         }
 
-        private async Task loadGit() {
-            string res = "";
+        private async Task loadDevicelist() {
+            if (!File.Exists("devicelist.json"))
+                return;
+            string devicelist = await Task.FromResult(System.IO.File.ReadAllText("devicelist.json"));
+            knowndev = Newtonsoft.Json.JsonConvert.DeserializeObject<List<MiDevice>>(devicelist);
+        }
+
+        private void saveDevicelist() {
+            string devicelist = Newtonsoft.Json.JsonConvert.SerializeObject(knowndev);
+            System.IO.File.WriteAllText("devicelist.json", devicelist);
+        }
+
+        private async Task loadRepos() {
             using (var httpClient = new HttpClient()) {
                 httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("RoborockFlasher", "1.0"));
-                HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/rand256/valetudo/releases");
-                res = await response.Content.ReadAsStringAsync();
+                HttpResponseMessage response = await httpClient.GetAsync("https://raw.githubusercontent.com/thejoe8495/RoboFlasher/master/Resources.json");
+                string res = await response.Content.ReadAsStringAsync();
+                valrelease = Newtonsoft.Json.JsonConvert.DeserializeObject<OnlineResources>(res);
             }
-            JObject resources = JObject.Parse(res);
+            await valrelease.webinterface[1].getReleases();
+            lstwebinterface.Items.AddRange(valrelease.webinterface[1].releases.ToArray());
         }
-
-        public static string SendResponse(HttpListenerRequest request) {
-            return System.IO.File.ReadAllText(request.Url.LocalPath.Substring(1));
-        }
-
-        private async void btnupdateFirmware_Click(object sender, EventArgs e) {
-            var device = new MiDevice(txtipadress.Text, txtToken.Text);
-            dynamic jsonObject = new JObject();
-            jsonObject.method = "miIO.ota";
-            jsonObject.@params = new {
-                mode = "normal",
-                install = "1",
-                app_url = ws.baseurl,// + localfile.Replace("\\", "/");
-                file_md5 = CalculateMD5(lstfirmware.Text), //CalculateMD5(localfile);
-                proc = "dnld install"
-            };
-
-            Dlid.MiHome.Protocol.MiHomeResponse response = await Task.FromResult(device.Send(jsonObject));
-            addtolog(response.ResponseText);
-
-        }
-
 
         private void txtToken_TextChanged(object sender, EventArgs e) {
             lblErrorToken.Text = "";
-            if (Regex.IsMatch(txtToken.Text, "^[a-f0-9]{32}$"))
-                lblErrorToken.Text = "Sorry token not match: #^[a-f0-9]{32}#";
+            if (!Regex.IsMatch(txtToken.Text, "^[a-fA-F0-9]{32}$"))
+                lblErrorToken.Text = "Sorry token not match: ^[a-fA-F0-9]{32}$";
         }
 
         private void lstdevices_SelectedIndexChanged(object sender, EventArgs e) {
-            if (txtipadress.Text.Length > 0 && tokens.ContainsKey(txtipadress.Text))
-                tokens[txtipadress.Text] = txtToken.Text;
-            else if (txtipadress.Text.Length > 0)
-                tokens.Add(txtipadress.Text, txtToken.Text);
-            txtipadress.Text = ((Device)lstdevices.SelectedItem).IP;
-            if (tokens.ContainsKey(txtipadress.Text))
-                txtToken.Text = tokens[txtipadress.Text];
+            if (txtipadress.Text.Length > 0) {
+                bool found = false;
+                foreach (var item in knowndev) {
+                    if (item.IpAddress == txtipadress.Text) {
+                        item.Token = txtToken.Text;
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    MiDevice dev = new MiDevice(txtipadress.Text, txtToken.Text);
+                    knowndev.Add(dev);
+                }
+            }
+            if (lstdevices.SelectedIndex > -1) {
+                txtipadress.Text = ((MiDevice)lstdevices.SelectedItem).IpAddress;
+                txtToken.Text = ((MiDevice)lstdevices.SelectedItem).Token.ToLower();
+            }
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e) {
+        private async void btnRefresh_Click(object sender, EventArgs e) {
             loadFiles("webinterface", lstwebinterface, cboWebinterface);
             loadFiles("firmware", lstfirmware, cboFirmware);
             loadFiles("voicepack", lstVoices, cboVoicepacks);
+            await loadRepos();
         }
 
         private async void btnWebinterfaceInstall_Click(object sender, EventArgs e) {
@@ -190,20 +208,6 @@ namespace RoboFlasher {
                 txtRsaKey.Text = openFileDialog1.FileName;
         }
 
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e) {
-            ws.Stop();
-            if (Properties.Settings.Default.Context.ContainsKey("rsafile"))
-                Properties.Settings.Default.Context.Add("rsafile", txtRsaKey.Text);
-            else
-                Properties.Settings.Default.Context["rsafile"] = txtRsaKey.Text;
-
-            if (Properties.Settings.Default.Context.ContainsKey("tokens"))
-                Properties.Settings.Default.Context.Add("tokens", tokens);
-            else
-                Properties.Settings.Default.Context["tokens"] = tokens;
-            Properties.Settings.Default.Save();
-        }
-
         private void btnGenerateNew_Click(object sender, EventArgs e) {
             var keygen = new SshKeyGenerator.SshKeyGenerator(1024);
 
@@ -215,30 +219,43 @@ namespace RoboFlasher {
 
         }
 
+        private void mergeDevices() {
+            bool found = false;
+            foreach (var disitem in discovered) {
+                foreach (var item in knowndev) {
+                    if (item.SerialID == disitem.SerialID && item.TypeID == disitem.TypeID) {
+                        item.IpAddress = disitem.IpAddress;
+                        item.SerialID = disitem.SerialID;
+                        item.TypeID = disitem.TypeID;
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    knowndev.Add(disitem);
+                }
+            }
+        }
+
+        private void refreshdevices() {
+            lstdevices.SelectedIndex = -1;
+            lstdevices.DataSource = null;
+            if (chkAllKnown.Checked)
+                lstdevices.DataSource = knowndev;
+            else
+                lstdevices.DataSource = discovered;
+            lstdevices.DisplayMember = "Devicename";
+            if (lstdevices.Items.Count > 0) lstdevices_SelectedIndexChanged(null, null);
+        }
+
         private async void btndiscover_Click(object sender, EventArgs e) {
             addtolog("Scan for Xiaomi Devices");
-            var test = new MiIO("255.255.255.255", "not needet", 3000);
-            await Task.FromResult(test.handshake());
-            lstdevices.DataSource = test.devlist;
-            if (test.devlist.Count > 0) lstdevices_SelectedIndexChanged(null,null);
+            var test2 = new MiDiscover();
+            await Task.Run(test2.Discover);
+            discovered = test2.Devices;
+            mergeDevices();
+            saveDevicelist();
+            refreshdevices();
             addtolog("Scan for Xiaomi Devices Finished");
-
-            Process p = new Process();
-            p.StartInfo.FileName = "netsh.exe";
-            StringBuilder parameters = new StringBuilder();
-            parameters.Append(" firewall");
-            parameters.Append(" add portopening");
-            parameters.Append(" protocol = UDP");
-            parameters.Append(" port = 54321");
-            parameters.Append(" name = RoboflasherDiscover");
-            parameters.Append(" mode = ENABLE");
-            parameters.Append(" profile = ALL");
-            p.StartInfo.Arguments = parameters.ToString();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.Start();
-            p.WaitForExit(10000);
         }
 
         private void addtolog(string text) {
@@ -246,6 +263,8 @@ namespace RoboFlasher {
         }
 
         private async void btnInstallVoicepack_Click(object sender, EventArgs e) {
+            if (lstVoices.SelectedIndex == -1)
+                return;
             string pkgname = "voicepack" + Path.DirectorySeparatorChar + (string)lstVoices.SelectedItem;
             if (Path.GetExtension(pkgname) == "") {
                 addtolog("Generate Package for Soundfiles");
@@ -262,15 +281,20 @@ namespace RoboFlasher {
             jsonObject.@params.md5 = CalculateMD5(pkgname);
 
             var device = new MiDevice(txtipadress.Text, txtToken.Text);
-            await Task.FromResult(device.Send(jsonObject));
-            Dlid.MiHome.Protocol.MiHomeResponse response = await Task.FromResult(device.Send("get_sound_progress"));
+            Dlid.MiHome.Protocol.MiHomeResponse response = await Task.FromResult(device.Send(jsonObject));
+            if (string.IsNullOrEmpty(response.ResponseText)) {
+                addtolog("Response is Empty, wrong Token?");
+                return;
+            }
+            response = await Task.FromResult(device.Send("get_sound_progress"));
             addtolog(response.ResponseText);
             progressMiiO = "get_sound_progress";
             timProgress.Start();
             prgMiiO.Value = 0;
         }
+
         private async void btnInstallFirmware_Click(object sender, EventArgs e) {
-            string pkgname = "firmware" + Path.DirectorySeparatorChar + (string)lstVoices.SelectedItem;
+            string pkgname = "firmware" + Path.DirectorySeparatorChar + (string)lstfirmware.SelectedItem;
             await sendInstall(pkgname);
         }
 
@@ -281,7 +305,8 @@ namespace RoboFlasher {
             }
             MiPackage pkg = new MiPackage((string)cboFirmware.SelectedItem);
 
-            await Task.Run(() => pkg.generateandCrypt());
+            string pkgname = await Task.FromResult(pkg.generateandCrypt());
+            await sendInstall(pkgname);
         }
 
         private async Task sendInstall(string pkgname) {
@@ -300,8 +325,12 @@ namespace RoboFlasher {
             jsonObject.@params.proc = "dnld install";
 
             var device = new MiDevice(txtipadress.Text, txtToken.Text);
-            await Task.FromResult(device.Send(jsonObject));
-            Dlid.MiHome.Protocol.MiHomeResponse response = await Task.FromResult(device.Send("miIO.get_ota_progress"));
+            Dlid.MiHome.Protocol.MiHomeResponse response = await Task.FromResult(device.Send(jsonObject));
+            if (string.IsNullOrEmpty(response.ResponseText)) {
+                addtolog("Response is Empty, wrong Token?");
+                return;
+            }
+            response = await Task.FromResult(device.Send("miIO.get_ota_progress"));
             addtolog(response.ResponseText);
             progressMiiO = "miIO.get_ota_progress";
             timProgress.Start();
@@ -387,36 +416,55 @@ namespace RoboFlasher {
             addtolog(response.ResponseText);
             if (string.IsNullOrEmpty(response.ResponseText)) return;
             JObject jobj = JObject.Parse(response.ResponseText);
-            if ((int)jobj["result"][0]["state"] == 3) {
-                addtolog("Install Finished");
-                progressMiiO = "";
-            }
-            prgMiiO.Value = (int)jobj["result"][0]["progress"];
-            prgMiiO.Update();
-            switch ((int)jobj["result"][0]["error"]) {
-                case 0:
-                    break;
-                case 2:
-                    addtolog("Device Can't connect to Webserver");
+            if (progressMiiO == "get_sound_progress") {
+                if ((int)jobj["result"][0]["state"] == 3) {
+                    addtolog("Install Finished");
                     progressMiiO = "";
-                    break;
-                case 3:
-                    addtolog("MD5 Hash wrong please retry");
-                    progressMiiO = "";
-                    break;
-                case 4:
-                    addtolog("Wrong File Format?");
-                    progressMiiO = "";
-                    break;
-                default:
-                    addtolog("unknown Error");
-                    progressMiiO = "";
-                    break;
+                }
+                prgMiiO.Value = (int)jobj["result"][0]["progress"];
+                prgMiiO.Update();
+                switch ((int)jobj["result"][0]["error"]) {
+                    case 0:
+                        break;
+                    case 2:
+                        addtolog("Device Can't connect to Webserver");
+                        progressMiiO = "";
+                        break;
+                    case 3:
+                        addtolog("MD5 Hash wrong please retry");
+                        progressMiiO = "";
+                        break;
+                    case 4:
+                        addtolog("Wrong File Format?");
+                        progressMiiO = "";
+                        break;
+                    default:
+                        addtolog("unknown Error");
+                        progressMiiO = "";
+                        break;
+                }
+            } else if (progressMiiO == "miIO.get_ota_progress") {
+                prgMiiO.Value = (int)jobj["result"][0];
             }
         }
 
         private void llbWebserver_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
             Process.Start(ws.baseurl);
+        }
+
+        private void chkAllKnown_CheckedChanged(object sender, EventArgs e) {
+            refreshdevices();
+        }
+
+        private void cboMiioCommands_SelectedIndexChanged(object sender, EventArgs e) {
+            if (cboMiioCommands.SelectedItem.ToString() == "--")
+                return;
+            else if (cboMiioCommands.SelectedItem.ToString() == "miIO.config_router") {
+                txtMiioParameter.Text = "{\"ssid\":\"XXX\",\"passwd\":\"XXX\"}";
+            } else {
+                txtMiioParameter.Text = "";
+            }
+            txtMiioCommand.Text = cboMiioCommands.SelectedItem.ToString();
         }
     }
 }
