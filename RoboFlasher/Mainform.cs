@@ -16,6 +16,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Net.NetworkInformation;
 
 namespace RoboFlasher {
     public partial class Mainform : MetroForm {
@@ -24,7 +25,8 @@ namespace RoboFlasher {
         private Dictionary<string, string> tokens = new Dictionary<string, string>();
         public List<MiDevice> knowndev = new List<MiDevice>();
         public List<MiDevice> discovered = new List<MiDevice>();
-        SimpleHTTPServer ws = new SimpleHTTPServer();
+        private  Dictionary<string,string> ipbroadcast = new Dictionary<string,string>();
+        SimpleHTTPServer ws;
         string progressMiiO = "";
 
         public Mainform() {
@@ -38,9 +40,29 @@ namespace RoboFlasher {
                 txtRsaKey.Text = Properties.Settings.Default.Context["rsafile"].ToString();
             if (Properties.Settings.Default.Context.ContainsKey("tokens"))
                 tokens = (Dictionary<string, string>)Properties.Settings.Default.Context["tokens"];
-            llbWebserver.Text = ws.baseurl;
             loadDevicelist();
             lstdevices.DataSource = knowndev;
+
+            NetworkInterface[] Interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (NetworkInterface Interface in Interfaces) {
+                if (Interface.NetworkInterfaceType == NetworkInterfaceType.Loopback || Interface.OperationalStatus != OperationalStatus.Up) continue;
+                Console.WriteLine(Interface.Description);
+                UnicastIPAddressInformationCollection UnicastIPInfoCol = Interface.GetIPProperties().UnicastAddresses;
+                foreach (UnicastIPAddressInformation UnicatIPInfo in UnicastIPInfoCol) {
+                    if (UnicatIPInfo.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
+                    byte[] broadcastIPBytes = new byte[4];
+                    byte[] hostBytes = UnicatIPInfo.Address.GetAddressBytes();
+                    byte[] maskBytes = UnicatIPInfo.IPv4Mask.GetAddressBytes();
+                    for (int i = 0; i < 4; i++) {
+                        broadcastIPBytes[i] = (byte)(hostBytes[i] | (byte)~maskBytes[i]);
+                    }
+                    ipbroadcast.Add(UnicatIPInfo.Address.ToString(), new IPAddress(broadcastIPBytes).ToString());
+                }
+            }
+            string[] keys = new string[ipbroadcast.Keys.Count];
+            ipbroadcast.Keys.CopyTo(keys, 0);
+            cbolisten.DataSource = keys;
+            //ws = new SimpleHTTPServer(6999, cbolisten.SelectedText);
         }
         private void Mainform_FormClosing(object sender, FormClosingEventArgs e) {
             ws.Stop();
@@ -85,6 +107,7 @@ namespace RoboFlasher {
                 return;
             string devicelist = await Task.FromResult(System.IO.File.ReadAllText("devicelist.json"));
             knowndev = Newtonsoft.Json.JsonConvert.DeserializeObject<List<MiDevice>>(devicelist);
+            refreshdevices();
         }
 
         private void saveDevicelist() {
@@ -133,10 +156,17 @@ namespace RoboFlasher {
             loadFiles("webinterface", lstwebinterface, cboWebinterface);
             loadFiles("firmware", lstfirmware, cboFirmware);
             loadFiles("voicepack", lstVoices, cboVoicepacks);
-            await loadRepos();
+            //await loadRepos();
         }
 
         private async void btnWebinterfaceInstall_Click(object sender, EventArgs e) {
+            if (lstwebinterface.SelectedIndex == -1) {
+                MessageBox.Show("Sprachpaket wurde nicht ausgewählt");
+                return;
+            } else if (txtipadress.Text.Length == 0) {
+                MessageBox.Show("Roborock wurde nicht ausgewählt");
+                return;
+            }
             var connectionInfo = new ConnectionInfo(txtipadress.Text, "root", new PrivateKeyAuthenticationMethod("root", new PrivateKeyFile(txtRsaKey.Text)));
             btnWebinterfaceInstall.Enabled = false;
             lstwebinterface.Enabled = false;
@@ -249,8 +279,13 @@ namespace RoboFlasher {
 
         private async void btndiscover_Click(object sender, EventArgs e) {
             addtolog("Scan for Xiaomi Devices");
-            var test2 = new MiDiscover();
+            string broad = "";
+            ipbroadcast.TryGetValue(cbolisten.SelectedValue.ToString(), out broad);
+            var test2 = new MiDiscover(broad);
             await Task.Run(test2.Discover);
+            foreach (var item in test2.Devices) {
+                addtolog(item.IpAddress + ": " + item.Token);
+            }
             discovered = test2.Devices;
             mergeDevices();
             saveDevicelist();
@@ -262,9 +297,18 @@ namespace RoboFlasher {
             txtlog.Text = text + Environment.NewLine + txtlog.Text;
         }
 
+        private void errorMsgBox(string error) {
+            MessageBox.Show(error);
+        }
+
         private async void btnInstallVoicepack_Click(object sender, EventArgs e) {
-            if (lstVoices.SelectedIndex == -1)
+            if (lstVoices.SelectedIndex == -1) {
+                MessageBox.Show("Sprachpaket wurde nicht ausgewählt");
                 return;
+            } else if (txtipadress.Text.Length == 0) {
+                MessageBox.Show("Roborock wurde nicht ausgewählt");
+                return;
+            }
             string pkgname = "voicepack" + Path.DirectorySeparatorChar + (string)lstVoices.SelectedItem;
             if (Path.GetExtension(pkgname) == "") {
                 addtolog("Generate Package for Soundfiles");
@@ -294,6 +338,13 @@ namespace RoboFlasher {
         }
 
         private async void btnInstallFirmware_Click(object sender, EventArgs e) {
+            if (lstfirmware.SelectedIndex == -1) {
+                MessageBox.Show("Sprachpaket wurde nicht ausgewählt");
+                return;
+            } else if (txtipadress.Text.Length == 0) {
+                MessageBox.Show("Roborock wurde nicht ausgewählt");
+                return;
+            }
             string pkgname = "firmware" + Path.DirectorySeparatorChar + (string)lstfirmware.SelectedItem;
             await sendInstall(pkgname);
         }
@@ -414,7 +465,11 @@ namespace RoboFlasher {
             var device = new MiDevice(txtipadress.Text, txtToken.Text);
             Dlid.MiHome.Protocol.MiHomeResponse response = await Task.FromResult(device.Send(progressMiiO));
             addtolog(response.ResponseText);
-            if (string.IsNullOrEmpty(response.ResponseText)) return;
+            if (string.IsNullOrEmpty(response.ResponseText)) {
+                progressMiiO = "";
+                addtolog("Device answer is null");
+                return;
+            }
             JObject jobj = JObject.Parse(response.ResponseText);
             if (progressMiiO == "get_sound_progress") {
                 if ((int)jobj["result"][0]["state"] == 3) {
@@ -427,19 +482,19 @@ namespace RoboFlasher {
                     case 0:
                         break;
                     case 2:
-                        addtolog("Device Can't connect to Webserver");
+                        addtolog("Device can't connect to webserver");
                         progressMiiO = "";
                         break;
                     case 3:
-                        addtolog("MD5 Hash wrong please retry");
+                        addtolog("MD5 hash wrong please retry");
                         progressMiiO = "";
                         break;
                     case 4:
-                        addtolog("Wrong File Format?");
+                        addtolog("Wrong file format?");
                         progressMiiO = "";
                         break;
                     default:
-                        addtolog("unknown Error");
+                        addtolog("unknown error");
                         progressMiiO = "";
                         break;
                 }
@@ -465,6 +520,17 @@ namespace RoboFlasher {
                 txtMiioParameter.Text = "";
             }
             txtMiioCommand.Text = cboMiioCommands.SelectedItem.ToString();
+        }
+
+        private void filewatcher_Changed(object sender, FileSystemEventArgs e) {
+            btnRefresh_Click(null, null);
+        }
+
+        private void cbolisten_SelectedIndexChanged(object sender, EventArgs e) {
+            if (cbolisten.SelectedIndex == -1) return;
+            if (ws != null) ws.Stop();
+            ws = new SimpleHTTPServer(6999, cbolisten.SelectedValue.ToString());
+            llbWebserver.Text = ws.baseurl;
         }
     }
 }

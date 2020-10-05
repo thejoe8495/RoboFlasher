@@ -28,6 +28,16 @@ namespace RoboFlasher {
         public SimpleHTTPServer(string path, int port) {
             this.Initialize(path, port);
         }
+        
+        /// <summary>
+        /// Construct server with given port.
+        /// </summary>
+        /// <param name="path">Directory path to serve.</param>
+        /// <param name="port">Port of the server.</param>
+        public SimpleHTTPServer(int port, string ip) {
+            this.Initialize(Path.GetFullPath("."), port, ip);
+        }
+
         /// <summary>
         /// Construct server with given port.
         /// </summary>
@@ -60,6 +70,9 @@ namespace RoboFlasher {
         public void Stop() {
             _serverThread.Abort();
             _listener.Stop();
+
+            classes.FirewallHelper p = new classes.FirewallHelper(Port);
+            p.closeFirewall();
         }
         private string getIP() {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -78,14 +91,14 @@ namespace RoboFlasher {
             while (true) {
                 try {
                     HttpListenerContext context = _listener.GetContext();
-                    Process(context);
+                    HandleRequest(context);
                 } catch (Exception) {
 
                 }
             }
         }
 
-        private void Process(HttpListenerContext context) {
+        private void HandleRequest(HttpListenerContext context) {
             string filename = context.Request.Url.AbsolutePath;
             Console.WriteLine(filename);
             filename = filename.Substring(1);
@@ -122,26 +135,20 @@ namespace RoboFlasher {
             context.Response.OutputStream.Close();
         }
 
-        private void Initialize(string path, int port) {
+        private void Initialize(string path, int port, string ip = null) {
             this._rootDirectory = path;
             this._port = port;
-            baseurl = "http://" + getIP() + ":" + port + "/";
-            Process p = new Process();
-            p.StartInfo.FileName = "netsh.exe";
-            StringBuilder parameters = new StringBuilder();
-            parameters.Append(" firewall");
-            parameters.Append(" add portopening");
-            parameters.Append(" protocol = TCP");
-            parameters.Append(" port = " + port);
-            parameters.Append(" name = Roboflasher");
-            parameters.Append(" mode = ENABLE");
-            parameters.Append(" profile = ALL");
-            p.StartInfo.Arguments = parameters.ToString();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.CreateNoWindow = true;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.Start();
-            p.WaitForExit(10000);
+            baseurl = "http://" + ip + ":" + port + "/";
+            //string args = "http add urlacl url=http://*:" + _port.ToString() + "/ user=Jeder listen=yes";
+
+            //ProcessStartInfo psi = new ProcessStartInfo("netsh", args);
+            ////psi.Verb = "runas";
+            //psi.CreateNoWindow = true;
+            //psi.WindowStyle = ProcessWindowStyle.Hidden;
+            //psi.UseShellExecute = true;
+
+            //Process.Start(psi).WaitForExit();
+
             //this.Listen();
             _serverThread = new Thread(this.Listen);
             _serverThread.Start();
